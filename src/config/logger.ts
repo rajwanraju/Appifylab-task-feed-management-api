@@ -1,4 +1,4 @@
-const pino = require("pino");
+import pino from "pino";
 
 const isLocal =
   process.env.NODE_ENV === "development" && !process.env.VERCEL;
@@ -15,4 +15,4 @@ const logger = isLocal
     )
   : pino();
 
-module.exports = logger;
+export default logger;
