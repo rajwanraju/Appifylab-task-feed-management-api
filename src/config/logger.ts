@@ -1,7 +1,19 @@
-import pino from 'pino';
-import { config } from './index';
+const pino = require("pino");
 
-export const logger = pino({
-  level: config.env === 'development' ? 'debug' : 'info',
-  transport: config.env === 'development' ? { target: 'pino-pretty', options: { colorize: true } } : undefined,
-});
+const isDev = process.env.NODE_ENV !== "production";
+
+const logger = pino(
+  isDev
+    ? {
+        transport: {
+          target: "pino-pretty",
+          options: {
+            colorize: true,
+            translateTime: "SYS:standard",
+          },
+        },
+      }
+    : {}
+);
+
+module.exports = logger;
