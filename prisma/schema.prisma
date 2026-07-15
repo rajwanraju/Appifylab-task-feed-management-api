@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum LikeTarget {
+  POST
+  COMMENT
+  REPLY
+}
+
+enum ReactionType {
+  LIKE
+  LOVE
+  HAHA
+  WOW
+  SAD
+  ANGRY
+}
+
+model User {
+  id        String   @id @default(uuid())
+  firstName String
+  lastName  String
+  email     String   @unique
+  password  String
+  avatar    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  posts      Post[]
+  comments   Comment[]
+  replies    Reply[]
+  likes      Like[]
+  shares     Share[]
+  savedPosts SavedPost[]
+
+  @@map("users")
+}
+
+model Post {
+  id          String     @id @default(uuid())
+  userId      String     @map("user_id")
+  content     String
+  image       String?
+  visibility  Visibility @default(PUBLIC)
+  sharesCount Int        @default(0) @map("shares_count")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments Comment[]
+  shares   Share[]
+  savedBy  SavedPost[]
+
+  @@index([createdAt(sort: Desc)], name: "idx_posts_created_at_desc")
+  @@index([userId], name: "idx_posts_user_id")
+  @@index([visibility], name: "idx_posts_visibility")
+  @@map("posts")
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  post    Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replies Reply[]
+
+  @@index([postId], name: "idx_comments_post_id")
+  @@map("comments")
+}
+
+model Reply {
+  id        String   @id @default(uuid())
+  commentId String   @map("comment_id")
+  userId    String   @map("user_id")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([commentId], name: "idx_replies_comment_id")
+  @@map("replies")
+}
+
+model Like {
+  id           String       @id @default(uuid())
+  userId       String       @map("user_id")
+  targetType   LikeTarget   @map("target_type")
+  targetId     String       @map("target_id")
+  reactionType ReactionType @default(LIKE) @map("reaction_type")
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetType, targetId], name: "uq_likes_user_target")
+  @@index([userId, targetType, targetId], name: "idx_likes_user_target")
+  @@map("likes")
+}
+
+model Share {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  postId    String   @map("post_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@map("shares")
+}
+
+model SavedPost {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  postId    String   @map("post_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@map("saved_posts")
+}

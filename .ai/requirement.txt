@@ -1,0 +1,552 @@
+# Social Feed Backend Assignment (Express.js + PostgreSQL)
+
+## Objective
+
+Build a production-ready REST API for a social feed application.
+
+The frontend is a separate Next.js application and will consume this API.
+
+The goal is to implement only the features defined in the assignment while keeping the code clean, scalable, and easy to maintain.
+
+Do not overengineer the solution.
+
+---
+
+# Tech Stack
+
+* Node.js 22+
+* Express.js
+* TypeScript
+* PostgreSQL
+* Prisma ORM
+* Redis (optional caching)
+* JWT Authentication
+* Multer for file uploads
+* Docker & Docker Compose
+* Zod or Joi for validation
+* Pino for logging
+* Jest + Supertest for testing
+
+---
+
+# Non-Functional Requirements
+
+The system should be designed assuming:
+
+* Millions of posts and reads
+* High concurrency
+* Horizontal scalability
+* Stateless API design
+* Good database indexing practices
+* Security and UX are top priorities
+
+Do not implement microservices, Kafka, CQRS, or Kubernetes.
+
+Keep the architecture simple and production-ready.
+
+---
+
+# Architecture
+
+Use a layered architecture:
+
+```text
+src/
+├── app.ts
+├── server.ts
+├── config/
+├── modules/
+│   ├── auth/
+│   ├── users/
+│   ├── posts/
+│   ├── comments/
+│   ├── replies/
+│   └── likes/
+├── middleware/
+├── utils/
+├── shared/
+├── services/
+├── types/
+└── prisma/
+```
+
+Each module should contain:
+
+```text
+module/
+├── controller.ts
+├── service.ts
+├── repository.ts
+├── routes.ts
+├── validation.ts
+├── types.ts
+└── dto.ts
+```
+
+---
+
+# Environment Variables
+
+```env
+NODE_ENV=development
+PORT=8000
+
+DATABASE_URL=
+JWT_SECRET=
+JWT_EXPIRES_IN=7d
+
+REDIS_URL=
+
+UPLOAD_PATH=uploads
+
+CORS_ORIGIN=http://localhost:3000
+```
+
+---
+
+# Authentication
+
+Use JWT Authentication.
+
+## Register
+
+Fields:
+
+* firstName
+* lastName
+* email
+* password
+
+Requirements:
+
+* email must be unique
+* hash password using bcrypt
+* validation
+* return user and token
+
+---
+
+## Login
+
+Fields:
+
+* email
+* password
+
+Requirements:
+
+* validate credentials
+* return JWT token
+* return authenticated user
+
+---
+
+## Logout
+
+JWT is stateless.
+
+Simple frontend token removal is sufficient.
+
+Optional:
+
+Implement token blacklist using Redis.
+
+---
+
+# Authorization
+
+Protected endpoints require:
+
+```http
+Authorization: Bearer <token>
+```
+
+Implement:
+
+```text
+authenticate middleware
+```
+
+and
+
+```text
+authorize middleware
+```
+
+for ownership checks.
+
+---
+
+# User Model
+
+```text
+id
+firstName
+lastName
+email
+password
+createdAt
+updatedAt
+```
+
+---
+
+# Post Model
+
+A post contains:
+
+* text
+* image (optional)
+* visibility
+
+Visibility values:
+
+```text
+PUBLIC
+PRIVATE
+```
+
+Fields:
+
+```text
+id
+userId
+content
+image
+visibility
+createdAt
+updatedAt
+```
+
+---
+
+# Comment Model
+
+```text
+id
+postId
+userId
+content
+createdAt
+updatedAt
+```
+
+---
+
+# Reply Model
+
+```text
+id
+commentId
+userId
+content
+createdAt
+updatedAt
+```
+
+---
+
+# Like Model
+
+Implement a polymorphic like system.
+
+Fields:
+
+```text
+id
+userId
+targetType
+targetId
+createdAt
+```
+
+targetType:
+
+```text
+POST
+COMMENT
+REPLY
+```
+
+A user can like an item only once.
+
+---
+
+# Features
+
+## Authentication
+
+* Register
+* Login
+* Current User
+
+---
+
+## Feed
+
+Protected route.
+
+Requirements:
+
+* newest posts first
+* all public posts visible
+* user's own private posts visible only to that user
+
+---
+
+## Posts
+
+Users can:
+
+* create post
+* update own post
+* delete own post
+* upload image
+* view post
+
+---
+
+## Likes
+
+Support:
+
+* like post
+* unlike post
+* like comment
+* unlike comment
+* like reply
+* unlike reply
+* list users who liked an item
+
+---
+
+## Comments
+
+Users can:
+
+* create comment
+* edit own comment
+* delete own comment
+
+---
+
+## Replies
+
+Users can:
+
+* create reply
+* edit own reply
+* delete own reply
+
+---
+
+# API Endpoints
+
+## Authentication
+
+```http
+POST   /api/auth/register
+POST   /api/auth/login
+GET    /api/auth/me
+```
+
+---
+
+## Posts
+
+```http
+GET    /api/posts
+POST   /api/posts
+GET    /api/posts/:id
+PATCH  /api/posts/:id
+DELETE /api/posts/:id
+```
+
+---
+
+## Post Likes
+
+```http
+POST   /api/posts/:id/like
+DELETE /api/posts/:id/like
+GET    /api/posts/:id/likes
+```
+
+---
+
+## Comments
+
+```http
+GET    /api/posts/:id/comments
+POST   /api/posts/:id/comments
+PATCH  /api/comments/:id
+DELETE /api/comments/:id
+```
+
+---
+
+## Comment Likes
+
+```http
+POST   /api/comments/:id/like
+DELETE /api/comments/:id/like
+GET    /api/comments/:id/likes
+```
+
+---
+
+## Replies
+
+```http
+POST   /api/comments/:id/replies
+PATCH  /api/replies/:id
+DELETE /api/replies/:id
+```
+
+---
+
+## Reply Likes
+
+```http
+POST   /api/replies/:id/like
+DELETE /api/replies/:id/like
+GET    /api/replies/:id/likes
+```
+
+---
+
+# Feed Pagination
+
+Implement cursor pagination.
+
+Avoid offset pagination.
+
+Example:
+
+```http
+GET /api/posts?cursor=123&limit=20
+```
+
+---
+
+# Database Requirements
+
+Use PostgreSQL.
+
+Design proper relationships and foreign keys.
+
+Create indexes for:
+
+```sql
+posts(created_at DESC)
+posts(user_id)
+posts(visibility)
+comments(post_id)
+replies(comment_id)
+likes(user_id, target_type, target_id)
+```
+
+Create unique constraint:
+
+```sql
+(user_id, target_type, target_id)
+```
+
+to prevent duplicate likes.
+
+---
+
+# Image Upload
+
+Use Multer.
+
+Store files locally:
+
+```text
+/uploads
+```
+
+Image upload is only required for posts.
+
+No image processing is required.
+
+---
+
+# API Response Format
+
+Success:
+
+```json
+{
+  "success": true,
+  "message": "Success",
+  "data": {}
+}
+```
+
+Error:
+
+```json
+{
+  "success": false,
+  "message": "Validation failed",
+  "errors": []
+}
+```
+
+---
+
+# Security Requirements
+
+Implement:
+
+* bcrypt password hashing
+* JWT authentication
+* input validation
+* file validation
+* CORS
+* Helmet
+* rate limiting
+* ownership checks
+* SQL injection protection via Prisma
+
+---
+
+# Performance Considerations
+
+Implement:
+
+* database indexes
+* cursor pagination
+* efficient queries
+* avoid N+1 queries
+* optional Redis caching for feed endpoint
+
+Mention in README:
+
+> The system is designed to scale horizontally by running multiple Express instances behind a load balancer with PostgreSQL indexing and optional Redis caching.
+
+---
+
+# Deliverables
+
+Generate:
+
+1. Complete project structure
+2. Prisma schema
+3. Database migrations
+4. Authentication module
+5. Post module
+6. Comment module
+7. Reply module
+8. Like module
+9. Validation layer
+10. Middleware
+11. Error handling
+12. Docker setup
+13. Seed data
+14. API documentation
+15. README with setup instructions
+16. Unit and integration test examples
+
+The final implementation should be clean, maintainable, production-ready, and should implement only the features defined in the assignment without adding unnecessary complexity.
