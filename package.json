@@ -77,7 +77,6 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "pino": "^9.5.0",
-    "pino-pretty": "^13.0.0",
     "zod": "^3.24.1"
   },
   "lint-staged": {
